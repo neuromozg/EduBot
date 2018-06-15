@@ -73,5 +73,7 @@ class EduBot():
         return voltage
 
     def GetCurrent(self):
-        current = self._bus.read_byte_data(EDUBOT_ADDRESS, REG_CURRENT)
+        currentADC = self._bus.read_byte_data(EDUBOT_ADDRESS, REG_CURRENT)
+        # Is = (Vout x 1k) / (RS x RL) RS = 0.01 RL = 10
+        current = ((REF_VOLTAGE*currentADC)/1024)/0.1
         return current
