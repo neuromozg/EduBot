@@ -4,49 +4,46 @@
 import time
 import edubot
 
-SPEED = 128
+SPEED = 200
+SERVO_MID_POS = 62
 
 robot = edubot.EduBot(1)
 
 assert robot.Check(), 'EduBot not found!!!'
 
+robot.Start()
 print ('EduBot started!!!')
 
-pos = 0
+shiftServoPos = 20
 
 try:
     while True:
         robot.leftMotor.SetSpeed(SPEED)
         robot.rightMotor.SetSpeed(SPEED)
         time.sleep(1)
+        print('Voltage: %.2f, Current: %.2f' % (robot.GetVoltage(), robot.GetCurrent()))
         robot.leftMotor.SetSpeed(0)
         robot.rightMotor.SetSpeed(0)
-        time.sleep(0.5)
-        robot.leftMotor.SetSpeed(-SPEED)
-        robot.rightMotor.SetSpeed(-SPEED)
         time.sleep(1)
-        robot.leftMotor.SetSpeed(0)
-        robot.rightMotor.SetSpeed(0)
-        time.sleep(0.5)
+        print('Voltage: %.2f, Current: %.2f' % (robot.GetVoltage(), robot.GetCurrent()))
+        
+        robot.servo[0].SetPosition(SERVO_MID_POS + shiftServoPos)
+        shiftServoPos = -shiftServoPos
 
-        robot.
-
-        pos += 25
-        if pos > 125:
-            pos = 0
-
-        print('Voltage: %d, Current: %d' % (robot.GetVoltage(), robot.GetCurrent()))
+        robot.Beep()
             
 except KeyboardInterrupt:
     print('Ctrl+C pressed')
 
 
+
 robot.leftMotor.SetSpeed(0)
 robot.rightMotor.SetSpeed(0)
 
-robot.servo[0].SetPosition(0)
-robot.servo[1].SetPosition(0)
-robot.servo[2].SetPosition(0)
-robot.servo[3].SetPosition(0)
+robot.servo[0].SetPosition(SERVO_MID_POS)
+robot.servo[1].SetPosition(SERVO_MID_POS)
+robot.servo[2].SetPosition(SERVO_MID_POS)
+robot.servo[3].SetPosition(SERVO_MID_POS)
 
+robot.Release()
 print('Stop EduBot')

@@ -1,4 +1,6 @@
 import smbus as I2C
+import threading
+import time
 
 #I2C Address of device
 EDUBOT_ADDRESS = 0x27
@@ -15,6 +17,7 @@ REG_DIR0    = 0x08
 REG_PWM0    = 0x09
 REG_DIR1    = 0x0A
 REG_PWM1    = 0x0B
+REG_BEEP    = 0x0C
 
 REF_VOLTAGE = 3.3 #опорное напряжение
 
@@ -51,6 +54,25 @@ class Servo():
 
         #задаем позицию
         self._bus.write_byte_data(EDUBOT_ADDRESS, REG_SERVO0 + self._numServo, pos)
+
+class OnLiner(threading.Thread):
+    def __init__(self, bus):
+        super(OnLiner, self).__init__()
+        self._bus = bus
+        self.daemon = True
+        self._stopped = threading.Event() #событие для остановки потока
+
+    def run(self):
+        print('OnLiner thread started')
+        while not self._stopped.is_set():
+            self._bus.write_byte_data(EDUBOT_ADDRESS, REG_ONLINE, 1)
+            time.sleep(1)
+        print('OnLiner thread stopped')
+
+    def stop(self): #остановка потока
+        self._stopped.set()
+        self.join()
+        
           
 class EduBot():
     def __init__(self, busNumber):
@@ -62,6 +84,7 @@ class EduBot():
         self._servo2 = Servo(self._bus, 2)
         self._servo3 = Servo(self._bus, 3)
         self.servo = (self._servo0, self._servo1, self._servo2, self._servo3)
+        self._onLiner = OnLiner(self._bus)
 
     def Check(self):
         res = self._bus.read_byte_data(EDUBOT_ADDRESS, REG_WHY_IAM)
@@ -77,3 +100,15 @@ class EduBot():
         # Is = (Vout x 1k) / (RS x RL) RS = 0.01 RL = 10
         current = ((REF_VOLTAGE*currentADC)/1024)/0.1
         return current
+
+    def Start(self):
+        self._onLiner.start()
+
+    def Release(self):
+        self._onLiner.stop()
+
+    def Beep(self):
+        self._bus.write_byte_data(EDUBOT_ADDRESS, REG_BEEP, 3)
+        
+
+    
