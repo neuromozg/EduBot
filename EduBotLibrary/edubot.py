@@ -7,19 +7,15 @@ EDUBOT_ADDRESS = 0x27
 
 REG_WHY_IAM = 0x00
 REG_ONLINE  = 0x01
-REG_VOLTAGE = 0x02
-REG_CURRENT = 0x03
-REG_SERVO0  = 0x04
-REG_SERVO1  = 0x05
-REG_SERVO2  = 0x06
-REG_SERVO3  = 0x07
-REG_DIR0    = 0x08
-REG_PWM0    = 0x09
-REG_DIR1    = 0x0A
-REG_PWM1    = 0x0B
-REG_BEEP    = 0x0C
-
-REF_VOLTAGE = 3.3 #опорное напряжение
+REG_SERVO0  = 0x02
+REG_SERVO1  = 0x03
+REG_SERVO2  = 0x04
+REG_SERVO3  = 0x05
+REG_DIR0    = 0x06
+REG_PWM0    = 0x07
+REG_DIR1    = 0x08
+REG_PWM1    = 0x09
+REG_BEEP    = 0x0A
 
 class Motor():
     def __init__(self, bus, regDir, regPWM):
@@ -89,17 +85,6 @@ class EduBot():
     def Check(self):
         res = self._bus.read_byte_data(EDUBOT_ADDRESS, REG_WHY_IAM)
         return (res == 0X2A) #True если полученный байт является ответом на главный вопрос жизни, вселенной и всего такого
-
-    def GetVoltage(self):
-        voltageADC = self._bus.read_byte_data(EDUBOT_ADDRESS, REG_VOLTAGE)
-        voltage = (REF_VOLTAGE*voltageADC*4)/256
-        return voltage
-
-    def GetCurrent(self):
-        currentADC = self._bus.read_byte_data(EDUBOT_ADDRESS, REG_CURRENT)
-        # Is = (Vout x 1k) / (RS x RL) RS = 0.01 RL = 10
-        current = ((REF_VOLTAGE*currentADC)/1024)/0.1
-        return current
 
     def Start(self):
         self._onLiner.start()
