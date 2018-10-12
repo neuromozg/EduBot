@@ -6,27 +6,59 @@ from time import sleep
 from xmlrpc.server import SimpleXMLRPCServer
 import threading
 
+#библиотеки для работы с i2c монитором питания INA219
+from ina219 import INA219
+from ina219 import DeviceRangeError
+
+#библиетека для работы с OLED дисплеем
+import Adafruit_SSD1306
+
+#библиотеки для работы с изображениями Python Image Library
+from PIL import Image
+from PIL import ImageFont
+from PIL import ImageDraw
+
 IP = '173.1.0.29'
 PORT = 8000
+
+SHUNT_OHMS = 0.01 #значение сопротивления шунта на плате EduBot
+MAX_EXPECTED_AMPS = 2.0
 
 servoPos = 62
 
 #поток для контроля напряжения и тока
-#параметр 
+#и отображения на дисплее
 class StateThread(threading.Thread):
     
-    def __init__(self, robot):
+    def __init__(self, robot, ina219, disp):
         super(StateThread, self).__init__()
         self.daemon = True
         self._stopped = threading.Event() #событие для остановки потока
         self._robot = robot
+        self._ina = ina219
+        self._disp = disp
 
+        
     def run(self):
+        image = Image.new('1', (self._disp.width, self._disp.height)) #создаем ч/б картинку для отрисовки на дисплее
+        draw = ImageDraw.Draw(image) #создаем объект для рисования на картинке
+        font = ImageFont.load_default() #создаем шрифт для отрисовки на дисплее
+
         print('State thread started')
         while not self._stopped.is_set():
-            voltage = self._robot.GetVoltage()
-            current = self._robot.GetCurrent()
-            print('Voltage: %.2f, Current: %d' % (voltage, current))
+            # Отрисовываем на картинке черный прямоугольник, тем самым её очищая
+            draw.rectangle((0, 0, self._disp.width, self._disp.height), outline=0, fill=0)
+            
+            #Отрисовываем строчки текста с текущими значениями напряжения, сылы тока и мощности
+            draw.text((0, 0), "Voltage: %.2fV" % self._ina.voltage(), font=font, fill=255)
+            draw.text((0, 10), "Current: %.2fmA" % self._ina.current(), font=font, fill=255)
+            draw.text((0, 20), "Power: %.2f" % self._ina.power(), font=font, fill=255)
+
+            # Копируем картинку на дисплей
+            self._disp.image(image)
+
+            #Обновляем дисплей
+            self._disp.display()
             sleep(1)
             
         print('State thread stopped')
@@ -71,7 +103,16 @@ robot = edubot.EduBot(1)
 assert robot.Check(), 'EduBot not found!!!'
 print ('EduBot started!!!')
 
-stateThread = StateThread(robot)
+ina = INA219(SHUNT_OHMS, MAX_EXPECTED_AMPS) #создаем обект для работы с INA219
+ina.configure(ina.RANGE_16V)
+
+disp = Adafruit_SSD1306.SSD1306_128_64(rst = None) #создаем обект для работы c OLED дисплеем 128х64
+disp.begin() #инициализируем дисплей
+
+disp.clear() #очищаем дисплей
+disp.display() #обновляем дисплей
+
+stateThread = StateThread(robot, ina, disp)
 stateThread.start()
 
 # Создаем сервер (IP адрес, порт, отключен лог)
@@ -89,8 +130,13 @@ server.register_function(ServoDown)
 try:
     server.serve_forever()
 except KeyboardInterrupt:
-    robot.servo[0].SetPosition(62)
-    robot.leftMotor.SetSpeed(0)
-    robot.rightMotor.SetSpeed(0)
-    stateThread.stop()
-    print('Stop program')
+    print('Ctrl+C pressed')
+    
+robot.servo[0].SetPosition(62)
+robot.leftMotor.SetSpeed(0)
+robot.rightMotor.SetSpeed(0)
+stateThread.stop()
+    
+disp.clear() #очищаем дисплей
+disp.display() #обновляем дисплей
+print('Stop program')
