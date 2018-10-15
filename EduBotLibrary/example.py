@@ -72,9 +72,10 @@ try:
         draw.rectangle((0, 0, width, height), outline=0, fill=0)
 
         #Отрисовываем строчки текста с текущими значениями напряжения, сылы тока и мощности
-        draw.text((0, 0), "Voltage: %.2f" % ina.voltage(), font=font, fill=255)
-        draw.text((0, 8), "Current: %.2f" % ina.current(), font=font, fill=255)
-        draw.text((0, 16), "Power: %.2f" % ina.power(), font=font, fill=255)
+        draw.text((0, 0), "EDUBOT PROJECT", font=font, fill=255)
+        draw.text((0, 10), "Voltage: %.2f" % ina.voltage(), font=font, fill=255)
+        draw.text((0, 20), "Current: %.2f" % ina.current(), font=font, fill=255)
+        draw.text((0, 30), "Power: %.2f" % ina.power(), font=font, fill=255)
         
         # Копируем картинку на дисплей
         disp.image(image)

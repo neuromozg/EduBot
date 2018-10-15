@@ -117,6 +117,7 @@ disp.begin() #инициализируем дисплей
 disp.clear() #очищаем дисплей
 disp.display() #обновляем дисплей
 
+#создаем и запускаем поток отображающий данные телеметрии да дисплее робота
 stateThread = StateThread(robot, ina, disp)
 stateThread.start()
 
