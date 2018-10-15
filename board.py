@@ -50,9 +50,10 @@ class StateThread(threading.Thread):
             draw.rectangle((0, 0, self._disp.width, self._disp.height), outline=0, fill=0)
             
             #Отрисовываем строчки текста с текущими значениями напряжения, сылы тока и мощности
-            draw.text((0, 0), "Voltage: %.2fV" % self._ina.voltage(), font=font, fill=255)
-            draw.text((0, 10), "Current: %.2fmA" % self._ina.current(), font=font, fill=255)
-            draw.text((0, 20), "Power: %.2f" % self._ina.power(), font=font, fill=255)
+            draw.text((0, 0), "Edubot project", font=font, fill=255)
+            draw.text((0, 10), "Voltage: %.2fV" % self._ina.voltage(), font=font, fill=255)
+            draw.text((0, 20), "Current: %.2fmA" % self._ina.current(), font=font, fill=255)
+            draw.text((0, 30), "Power: %.2f" % self._ina.power(), font=font, fill=255)
 
             # Копируем картинку на дисплей
             self._disp.image(image)
@@ -101,7 +102,11 @@ def ServoDown():
 
 robot = edubot.EduBot(1)
 assert robot.Check(), 'EduBot not found!!!'
+robot.Start() #обязательная процедура, запуск потока отправляющего на контроллер EduBot онлайн сообщений
+
 print ('EduBot started!!!')
+
+
 
 ina = INA219(SHUNT_OHMS, MAX_EXPECTED_AMPS) #создаем обект для работы с INA219
 ina.configure(ina.RANGE_16V)
@@ -136,6 +141,9 @@ robot.servo[0].SetPosition(62)
 robot.leftMotor.SetSpeed(0)
 robot.rightMotor.SetSpeed(0)
 stateThread.stop()
+
+#останавливаем поток отправки онлайн сообщений в контроллер EduBot
+robot.Release()
     
 disp.clear() #очищаем дисплей
 disp.display() #обновляем дисплей
