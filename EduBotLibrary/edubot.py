@@ -35,7 +35,7 @@ class _Motor():
         self._busLock.acquire()
         try:   
             #задаем направление
-            direction = (speed > 0)
+            direction = int(speed > 0)
             self._bus.write_byte_data(EDUBOT_ADDRESS, self._regDir, direction)
             #задаем ШИМ
             self._bus.write_byte_data(EDUBOT_ADDRESS, self._regPWM, abs(speed))
@@ -86,27 +86,26 @@ class _OnLiner(threading.Thread):
     def stop(self): #остановка потока
         self._stopped.set()
         self.join()
-        
           
 class EduBot():
     def __init__(self, busNumber):
         self._bus = I2C.SMBus(busNumber) #объект для работы с шиной I2C
-        self._busLock = threading.Lock() #блокировка для раздельного доступа к I2C
-        self.leftMotor = _Motor(self._bus, self._busLock, REG_DIR0, REG_PWM0)
-        self.rightMotor = _Motor(self._bus, self._busLock, REG_DIR1, REG_PWM1)
-        self._servo0 = _Servo(self._bus, self._busLock, 0)
-        self._servo1 = _Servo(self._bus, self._busLock, 1)
-        self._servo2 = _Servo(self._bus, self._busLock, 2)
-        self._servo3 = _Servo(self._bus, self._busLock, 3)
+        self.busLock = threading.Lock() #блокировка для раздельного доступа к I2C
+        self.leftMotor = _Motor(self._bus, self.busLock, REG_DIR0, REG_PWM0)
+        self.rightMotor = _Motor(self._bus, self.busLock, REG_DIR1, REG_PWM1)
+        self._servo0 = _Servo(self._bus, self.busLock, 0)
+        self._servo1 = _Servo(self._bus, self.busLock, 1)
+        self._servo2 = _Servo(self._bus, self.busLock, 2)
+        self._servo3 = _Servo(self._bus, self.busLock, 3)
         self.servo = (self._servo0, self._servo1, self._servo2, self._servo3)
-        self._onLiner = _OnLiner(self._bus, self._busLock)
+        self._onLiner = _OnLiner(self._bus, self.busLock)
 
     def Check(self):
-        self._busLock.acquire()
+        self.busLock.acquire()
         try:
             res = self._bus.read_byte_data(EDUBOT_ADDRESS, REG_WHY_IAM)
         finally:
-            self._busLock.release()
+            self.busLock.release()
         return (res == 0X2A) #True если полученный байт является ответом на главный вопрос жизни, вселенной и всего такого
 
     def Start(self):
@@ -116,11 +115,11 @@ class EduBot():
         self._onLiner.stop()
 
     def Beep(self):
-        self._busLock.acquire()
+        self.busLock.acquire()
         try:
             self._bus.write_byte_data(EDUBOT_ADDRESS, REG_BEEP, 3)
         finally:
-            self._busLock.release()
+            self.busLock.release()
         
 
     
