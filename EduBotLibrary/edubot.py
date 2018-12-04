@@ -20,16 +20,18 @@ REG_BEEP    = 0x0A
 class _Motor():
     def __init__(self, bus, lock, regDir, regPWM):
         self._bus = bus #объект для работы с шиной I2C
+        self._busLock = lock #блокировка для раздельного доступа к I2C
         self._regDir = regDir
         self._regPWM = regPWM
-        self._busLock = lock
         
 
     def SetSpeed(self, speed):
+        #нормализуем скорость
         if speed > 255:
             speed = 255
         elif speed < -255:
             speed = -255
+            
         self._busLock.acquire()
         try:   
             #задаем направление
@@ -43,8 +45,8 @@ class _Motor():
 class _Servo():
     def __init__(self, bus, lock, numServo):
         self._bus = bus #объект для работы с шиной I2C
+        self._busLock = lock #блокировка для раздельного доступа к I2C
         self._numServo = numServo
-        self._busLock = lock
 
     def SetPosition(self, pos):
         #нормализуем позицию
@@ -64,12 +66,13 @@ class _OnLiner(threading.Thread):
     def __init__(self, bus, lock):
         super(_OnLiner, self).__init__()
         self._bus = bus
+        self._busLock = lock #блокировка для раздельного доступа к I2C
         self.daemon = True
         self._stopped = threading.Event() #событие для остановки потока
-        self._busLock = lock
 
     def run(self):
         print('OnLiner thread started')
+        
         while not self._stopped.is_set():
             self._busLock.acquire()
             try:
@@ -77,6 +80,7 @@ class _OnLiner(threading.Thread):
             finally:
                 self._busLock.release()
             time.sleep(1)
+            
         print('OnLiner thread stopped')
 
     def stop(self): #остановка потока
