@@ -17,11 +17,12 @@ REG_DIR1    = 0x08
 REG_PWM1    = 0x09
 REG_BEEP    = 0x0A
 
-class Motor():
-    def __init__(self, bus, regDir, regPWM):
+class _Motor():
+    def __init__(self, bus, lock, regDir, regPWM):
         self._bus = bus #объект для работы с шиной I2C
         self._regDir = regDir
         self._regPWM = regPWM
+        self._busLock = lock
         
 
     def SetSpeed(self, speed):
@@ -29,39 +30,52 @@ class Motor():
             speed = 255
         elif speed < -255:
             speed = -255
+        self._busLock.acquire()
+        try:   
+            #задаем направление
+            direction = (speed > 0)
+            self._bus.write_byte_data(EDUBOT_ADDRESS, self._regDir, direction)
+            #задаем ШИМ
+            self._bus.write_byte_data(EDUBOT_ADDRESS, self._regPWM, abs(speed))
+        finally:
+            self._busLock.release()
 
-        #задаем направление
-        direction = (speed > 0)
-        self._bus.write_byte_data(EDUBOT_ADDRESS, self._regDir, direction)
-
-        #задаем ШИМ
-        self._bus.write_byte_data(EDUBOT_ADDRESS, self._regPWM, abs(speed))
-
-class Servo():
+class _Servo():
     def __init__(self, bus, numServo):
         self._bus = bus #объект для работы с шиной I2C
         self._numServo = numServo
+        self._busLock = lock
 
     def SetPosition(self, pos):
+        #нормализуем позицию
         if pos < 0:
             pos = 0
         elif pos > 125:
             pos = 125
+            
+        self._busLock.acquire()
+        try:    
+            #задаем позицию
+            self._bus.write_byte_data(EDUBOT_ADDRESS, REG_SERVO0 + self._numServo, pos)
+        finally:
+            self._busLock.release()
 
-        #задаем позицию
-        self._bus.write_byte_data(EDUBOT_ADDRESS, REG_SERVO0 + self._numServo, pos)
-
-class OnLiner(threading.Thread):
-    def __init__(self, bus):
+class _OnLiner(threading.Thread):
+    def __init__(self, bus, lock):
         super(OnLiner, self).__init__()
         self._bus = bus
         self.daemon = True
         self._stopped = threading.Event() #событие для остановки потока
+        self._busLock = lock
 
     def run(self):
         print('OnLiner thread started')
         while not self._stopped.is_set():
-            self._bus.write_byte_data(EDUBOT_ADDRESS, REG_ONLINE, 1)
+            self._busLock.acquire()
+            try:
+                self._bus.write_byte_data(EDUBOT_ADDRESS, REG_ONLINE, 1)
+            finally:
+                self._busLock.release()
             time.sleep(1)
         print('OnLiner thread stopped')
 
@@ -73,17 +87,22 @@ class OnLiner(threading.Thread):
 class EduBot():
     def __init__(self, busNumber):
         self._bus = I2C.SMBus(busNumber) #объект для работы с шиной I2C
-        self.leftMotor = Motor(self._bus, REG_DIR0, REG_PWM0)
-        self.rightMotor = Motor(self._bus, REG_DIR1, REG_PWM1)
-        self._servo0 = Servo(self._bus, 0)
-        self._servo1 = Servo(self._bus, 1)
-        self._servo2 = Servo(self._bus, 2)
-        self._servo3 = Servo(self._bus, 3)
+        self._busLock = threading.Lock() #блокировка для раздельного доступа к I2C
+        self.leftMotor = _Motor(self._bus, self._busLock, REG_DIR0, REG_PWM0)
+        self.rightMotor = _Motor(self._bus, self._busLock, REG_DIR1, REG_PWM1)
+        self._servo0 = _Servo(self._bus, self._busLock, 0)
+        self._servo1 = _Servo(self._bus, self._busLock, 1)
+        self._servo2 = _Servo(self._bus, self._busLock, 2)
+        self._servo3 = _Servo(self._bus, self._busLock, 3)
         self.servo = (self._servo0, self._servo1, self._servo2, self._servo3)
-        self._onLiner = OnLiner(self._bus)
+        self._onLiner = _OnLiner(self._bus, self._busLock)
 
     def Check(self):
-        res = self._bus.read_byte_data(EDUBOT_ADDRESS, REG_WHY_IAM)
+        self._busLock.acquire()
+        try:
+            res = self._bus.read_byte_data(EDUBOT_ADDRESS, REG_WHY_IAM)
+        finally:
+            self._busLock.release()
         return (res == 0X2A) #True если полученный байт является ответом на главный вопрос жизни, вселенной и всего такого
 
     def Start(self):
@@ -93,7 +112,11 @@ class EduBot():
         self._onLiner.stop()
 
     def Beep(self):
-        self._bus.write_byte_data(EDUBOT_ADDRESS, REG_BEEP, 3)
+        self._busLock.acquire()
+        try:
+            self._bus.write_byte_data(EDUBOT_ADDRESS, REG_BEEP, 3)
+        finally:
+            self._busLock.release()
         
 
     
