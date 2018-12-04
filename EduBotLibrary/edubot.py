@@ -41,7 +41,7 @@ class _Motor():
             self._busLock.release()
 
 class _Servo():
-    def __init__(self, bus, numServo):
+    def __init__(self, bus, lock, numServo):
         self._bus = bus #объект для работы с шиной I2C
         self._numServo = numServo
         self._busLock = lock
