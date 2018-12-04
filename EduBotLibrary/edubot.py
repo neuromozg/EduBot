@@ -62,7 +62,7 @@ class _Servo():
 
 class _OnLiner(threading.Thread):
     def __init__(self, bus, lock):
-        super(OnLiner, self).__init__()
+        super(_OnLiner, self).__init__()
         self._bus = bus
         self.daemon = True
         self._stopped = threading.Event() #событие для остановки потока
