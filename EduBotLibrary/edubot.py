@@ -7,6 +7,10 @@ import time
 from ina219 import INA219
 from ina219 import DeviceRangeError
 
+#библиетека для работы с OLED дисплеем
+#установка библиотеки sudo pip3 install Adafruit-SSD1306
+import Adafruit_SSD1306
+
 I2C_1 = 1 #номер шины I2C
 
 #I2C Address of device
@@ -34,7 +38,6 @@ class _Motor():
         self._regDir = regDir
         self._regPWM = regPWM
         
-
     def SetSpeed(self, speed):
         #нормализуем скорость
         if speed > 255:
@@ -98,7 +101,7 @@ class _OnLiner(threading.Thread):
         self.join()
           
 class EduBot():
-    def __init__(self):
+    def __init__(self, enableDisplay = False):
         self._bus = I2C.SMBus(I2C_1) #объект для работы с шиной I2C
         self.busLock = threading.Lock() #блокировка для раздельного доступа к I2C
         self.leftMotor = _Motor(self._bus, self.busLock, REG_DIR0, REG_PWM0)
@@ -109,14 +112,48 @@ class EduBot():
         self._servo3 = _Servo(self._bus, self.busLock, 3)
         self.servo = (self._servo0, self._servo1, self._servo2, self._servo3)
         self._onLiner = _OnLiner(self._bus, self.busLock)
-        #конфигурируем INA219
+
         self.busLock.acquire()
         try:
             self._ina = INA219(SHUNT_OHMS, MAX_EXPECTED_AMPS) #создаем обект для работы с INA219
-            self._ina.configure(INA219.RANGE_16V)
+            self._ina.configure(INA219.RANGE_16V) #конфигурируем INA219
         finally:
             self.busLock.release()
 
+        self._display = None
+        self.displaySize = (0, 0)
+        
+        self.enableDisplay = enableDisplay        
+        if enableDisplay:
+            self._display = Adafruit_SSD1306.SSD1306_128_64(rst = None) #создаем обект для работы c OLED дисплеем 128х64
+
+            self.busLock.acquire()
+            try:
+                self._display.begin() #инициализируем дисплей
+            finally:
+                self.busLock.release()
+            self.displaySize = (self._display.width, self._display.height)
+            
+    def ClearDisplay(self):
+        if self.enableDisplay:
+            # Очистка дисплея
+            self.busLock.acquire()
+            try:
+                self._display.clear() #очищаем дисплей
+                self._display.display() #обновляем дисплей
+            finally:
+                self.busLock.release()            
+
+    def DrawDisplay(self, image):
+        if self.enableDisplay:
+            # Очистка дисплея
+            self.busLock.acquire()
+            try:
+                self._display.image(image) # Копируем картинку на дисплей
+                self._display.display() #обновляем дисплей
+            finally:
+                self.busLock.release() 
+            
     def Check(self):
         self.busLock.acquire()
         try:
@@ -138,6 +175,7 @@ class EduBot():
         finally:
             self.busLock.release()
 
+    #функция возвращает значение напряжения, силы тока, мощности в текущий момент времени
     def GetPowerData(self):
         voltage = 0
         current = 0
