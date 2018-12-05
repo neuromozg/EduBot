@@ -2,6 +2,13 @@ import smbus as I2C
 import threading
 import time
 
+#библиотеки для работы с i2c монитором питания INA219
+#установка библиотеки sudo pip3 install pi-ina219
+from ina219 import INA219
+from ina219 import DeviceRangeError
+
+I2C_1 = 1 #номер шины I2C
+
 #I2C Address of device
 EDUBOT_ADDRESS = 0x27
 
@@ -16,6 +23,9 @@ REG_PWM0    = 0x07
 REG_DIR1    = 0x08
 REG_PWM1    = 0x09
 REG_BEEP    = 0x0A
+
+SHUNT_OHMS = 0.01 #значение сопротивления шунта на плате EduBot
+MAX_EXPECTED_AMPS = 2.0
 
 class _Motor():
     def __init__(self, bus, lock, regDir, regPWM):
@@ -88,8 +98,8 @@ class _OnLiner(threading.Thread):
         self.join()
           
 class EduBot():
-    def __init__(self, busNumber):
-        self._bus = I2C.SMBus(busNumber) #объект для работы с шиной I2C
+    def __init__(self):
+        self._bus = I2C.SMBus(I2C_1) #объект для работы с шиной I2C
         self.busLock = threading.Lock() #блокировка для раздельного доступа к I2C
         self.leftMotor = _Motor(self._bus, self.busLock, REG_DIR0, REG_PWM0)
         self.rightMotor = _Motor(self._bus, self.busLock, REG_DIR1, REG_PWM1)
@@ -99,6 +109,13 @@ class EduBot():
         self._servo3 = _Servo(self._bus, self.busLock, 3)
         self.servo = (self._servo0, self._servo1, self._servo2, self._servo3)
         self._onLiner = _OnLiner(self._bus, self.busLock)
+        #конфигурируем INA219
+        self.busLock.acquire()
+        try:
+            self._ina = INA219(SHUNT_OHMS, MAX_EXPECTED_AMPS) #создаем обект для работы с INA219
+            self._ina.configure(INA219.RANGE_16V)
+        finally:
+            self.busLock.release()
 
     def Check(self):
         self.busLock.acquire()
@@ -106,7 +123,7 @@ class EduBot():
             res = self._bus.read_byte_data(EDUBOT_ADDRESS, REG_WHY_IAM)
         finally:
             self.busLock.release()
-        return (res == 0X2A) #True если полученный байт является ответом на главный вопрос жизни, вселенной и всего такого
+        return (res == 0X2A) #возвращает True если полученный байт является ответом на главный вопрос жизни, вселенной и всего такого
 
     def Start(self):
         self._onLiner.start()
@@ -120,6 +137,23 @@ class EduBot():
             self._bus.write_byte_data(EDUBOT_ADDRESS, REG_BEEP, 3)
         finally:
             self.busLock.release()
+
+    def GetPowerData(self):
+        voltage = 0
+        current = 0
+        power = 0
+        
+        self.busLock.acquire()
+        try:
+            voltage = self._ina.voltage()
+            current = self._ina.current()
+            power = self._ina.power()
+        finally:
+            self.busLock.release()
+        
+        return voltage, current, power
+
+
         
 
     

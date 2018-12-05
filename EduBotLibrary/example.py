@@ -3,10 +3,6 @@
 
 import time
 
-#библиотеки для работы с i2c монитором питания INA219
-from ina219 import INA219
-from ina219 import DeviceRangeError
-
 #библиетека для работы с OLED дисплеем
 import Adafruit_SSD1306
 
@@ -20,15 +16,8 @@ import edubot
 
 SPEED = 200 #скорость моторов
 SERVO_MID_POS = 62 #среднее положение сервомотора
-I2C_1 = 1 #номер шины I2C
 
-SHUNT_OHMS = 0.01 #значение сопротивления шунта на плате EduBot
-MAX_EXPECTED_AMPS = 2.0
-
-robot = edubot.EduBot(I2C_1) #создаем обект для работы с EduBot (параметр, номер шины i2c)
-
-ina = INA219(SHUNT_OHMS, MAX_EXPECTED_AMPS) #создаем обект для работы с INA219
-ina.configure(ina.RANGE_16V)
+robot = edubot.EduBot() #создаем обект для работы с EduBot
 
 disp = Adafruit_SSD1306.SSD1306_128_64(rst = None) #создаем обект для работы c OLED дисплеем 128х64
 
@@ -45,7 +34,7 @@ disp.display() #обновляем дисплей
 
 font = ImageFont.load_default() #создаем шрифт для отрисовки на дисплее
 
-assert robot.Check(), 'EduBot not found!!!' #проверяем наличие платы
+assert robot.Check(), 'EduBot not found!!!' #проверяем наличие платы Edubot
 
 robot.Start() #обязательная процедура, запуск потока отправляющего на контроллер EduBot онлайн сообщений
 print ('EduBot started!!!')
@@ -71,11 +60,13 @@ try:
         # Отрисовываем на картинке черный прямоугольник, тем самым её очищая
         draw.rectangle((0, 0, width, height), outline=0, fill=0)
 
+        voltage, current, power = robot.GetPowerData() #получаем данные напряжение, сила тока, мощность
+        
         #Отрисовываем строчки текста с текущими значениями напряжения, сылы тока и мощности
         draw.text((0, 0), "EDUBOT PROJECT", font=font, fill=255)
-        draw.text((0, 10), "Voltage: %.2f" % ina.voltage(), font=font, fill=255)
-        draw.text((0, 20), "Current: %.2f" % ina.current(), font=font, fill=255)
-        draw.text((0, 30), "Power: %.2f" % ina.power(), font=font, fill=255)
+        draw.text((0, 10), "Voltage: %.2f" % voltage, font=font, fill=255)
+        draw.text((0, 20), "Current: %.2f" % current, font=font, fill=255)
+        draw.text((0, 30), "Power: %.2f" % power, font=font, fill=255)
         
         # Копируем картинку на дисплей
         disp.image(image)
