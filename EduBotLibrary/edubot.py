@@ -1,6 +1,7 @@
 import smbus as I2C
 import threading
 import time
+import logging
 
 #библиотеки для работы с i2c монитором питания INA219
 #установка библиотеки sudo pip3 install pi-ina219
@@ -31,6 +32,8 @@ REG_BEEP    = 0x0A
 SHUNT_OHMS = 0.01 #значение сопротивления шунта на плате EduBot
 MAX_EXPECTED_AMPS = 2.0
 
+I2C_LOG_FORMAT = 'Error %d, %s accessing 0x%02X: Check your I2C address'
+
 class _Motor():
     def __init__(self, bus, lock, regDir, regPWM):
         self._bus = bus #объект для работы с шиной I2C
@@ -47,11 +50,16 @@ class _Motor():
             
         self._busLock.acquire()
         try:   
-            #задаем направление
-            direction = int(speed > 0)
-            self._bus.write_byte_data(EDUBOT_ADDRESS, self._regDir, direction)
-            #задаем ШИМ
-            self._bus.write_byte_data(EDUBOT_ADDRESS, self._regPWM, abs(speed))
+            try:
+                #задаем направление
+                direction = int(speed > 0)
+                self._bus.write_byte_data(EDUBOT_ADDRESS, self._regDir, direction)
+                time.sleep(0.001)
+                #задаем ШИМ
+                self._bus.write_byte_data(EDUBOT_ADDRESS, self._regPWM, abs(speed))
+                time.sleep(0.001)
+            except IOError as err:
+                logging.exception(I2C_LOG_FORMAT, err.errno, err.strerror, EDUBOT_ADDRESS)
         finally:
             self._busLock.release()
 
@@ -69,9 +77,13 @@ class _Servo():
             pos = 125
             
         self._busLock.acquire()
-        try:    
-            #задаем позицию
-            self._bus.write_byte_data(EDUBOT_ADDRESS, REG_SERVO0 + self._numServo, pos)
+        try:
+            try:
+                #задаем позицию
+                self._bus.write_byte_data(EDUBOT_ADDRESS, REG_SERVO0 + self._numServo, pos)
+                time.sleep(0.001)
+            except IOError as err:
+                logging.exception(I2C_LOG_FORMAT, err.errno, err.strerror, EDUBOT_ADDRESS)
         finally:
             self._busLock.release()
 
@@ -89,7 +101,11 @@ class _OnLiner(threading.Thread):
         while not self._stopped.is_set():
             self._busLock.acquire()
             try:
-                self._bus.write_byte_data(EDUBOT_ADDRESS, REG_ONLINE, 1)
+                try:
+                    self._bus.write_byte_data(EDUBOT_ADDRESS, REG_ONLINE, 1)
+                    time.sleep(0.001)
+                except IOError as err:
+                    logging.exception(I2C_LOG_FORMAT, err.errno, err.strerror, EDUBOT_ADDRESS)
             finally:
                 self._busLock.release()
             time.sleep(1)
@@ -157,7 +173,11 @@ class EduBot():
     def Check(self):
         self.busLock.acquire()
         try:
-            res = self._bus.read_byte_data(EDUBOT_ADDRESS, REG_WHY_IAM)
+            try:
+                res = self._bus.read_byte_data(EDUBOT_ADDRESS, REG_WHY_IAM)
+                time.sleep(0.001)
+            except IOError as err:
+                logging.exception(I2C_LOG_FORMAT, err.errno, err.strerror, EDUBOT_ADDRESS)
         finally:
             self.busLock.release()
         return (res == 0X2A) #возвращает True если полученный байт является ответом на главный вопрос жизни, вселенной и всего такого
@@ -171,7 +191,11 @@ class EduBot():
     def Beep(self):
         self.busLock.acquire()
         try:
-            self._bus.write_byte_data(EDUBOT_ADDRESS, REG_BEEP, 3)
+            try:
+                self._bus.write_byte_data(EDUBOT_ADDRESS, REG_BEEP, 3)
+                time.sleep(0.001)
+            except IOError as err:
+                logging.exception(I2C_LOG_FORMAT, err.errno, err.strerror, EDUBOT_ADDRESS)
         finally:
             self.busLock.release()
 
