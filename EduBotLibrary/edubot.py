@@ -96,8 +96,8 @@ class _OnLiner(threading.Thread):
         self._stopped = threading.Event() #событие для остановки потока
 
     def run(self):
-        print('OnLiner thread started')
-        
+        #print('OnLiner thread started')
+        logging.info('OnLiner thread started')
         while not self._stopped.is_set():
             self._busLock.acquire()
             try:
@@ -110,7 +110,8 @@ class _OnLiner(threading.Thread):
                 self._busLock.release()
             time.sleep(1)
             
-        print('OnLiner thread stopped')
+        logging.info('OnLiner thread stopped')
+        #print('OnLiner thread stopped')
 
     def stop(self): #остановка потока
         self._stopped.set()
